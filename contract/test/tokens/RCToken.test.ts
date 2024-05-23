@@ -2,7 +2,7 @@
  * @Author: zhouzheng66 2029054066@qq.com
  * @Date: 2024-05-23 13:54:10
  * @LastEditors: zhouzheng66 2029054066@qq.com
- * @LastEditTime: 2024-05-23 14:21:13
+ * @LastEditTime: 2024-05-23 16:45:52
  * @FilePath: /defi_chainreward/contract/test/tokens/RCToken.test.ts
  * @Description: 测试示例文件
  */
@@ -10,7 +10,7 @@ import { expect } from "chai";
 import { Contract } from "ethers";
 import { ethers, upgrades } from "hardhat";
 
-describe("LLTToken", function () {
+describe("RCToken", function () {
   let contract: Contract;
 
   beforeEach(async function () {
