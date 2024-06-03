@@ -18,7 +18,7 @@ describe("RCToken", function () {
     contract = await upgrades.deployProxy(Token);
     await contract.deployed();
   });
-  it("Lotloot test", async () => {
+  it("RCToken test", async () => {
     expect(contract).to.be.instanceOf(Contract);
     expect(await contract.name()).to.equal("RewardChainToken");
     expect(await contract.symbol()).to.equal("RCT");
