@@ -1,94 +1,188 @@
 const { expect } = require("chai");
-const { ethers, upgrades } = require("hardhat");
+const { ethers } = require("hardhat");
 
 describe("ChainReward", function () {
-  let Token, token, ChainReward, chainReward, owner, addr1, addr2;
+  let fUSDT, chainReward, owner, user1, user2;
 
   beforeEach(async function () {
-    // 部署ERC20代币合约
-    [owner, addr1, addr2, _] = await ethers.getSigners();
-    const Token = await ethers.getContractFactory("RCToken");
-    token = await upgrades.deployProxy(Token);
-    await token.deployed();
+    [owner, user1, user2] = await ethers.getSigners();
+
+    // 部署fUSDT合约
+    const fUSDTContract = await ethers.getContractFactory("fUSDT");
+    fUSDT = await fUSDTContract.deploy();
+    await fUSDT.deployed();
+
+    // 分发一些fUSDT给用户
+    await fUSDT.connect(owner).transfer(user1.address, ethers.utils.parseUnits("1000", 18));
+    await fUSDT.connect(owner).transfer(user2.address, ethers.utils.parseUnits("1000", 18));
 
     // 部署ChainReward合约
-    ChainReward = await ethers.getContractFactory("ChainReward");
-
-    chainReward = await ChainReward.deploy(token.address, 0);
+    const ChainReward = await ethers.getContractFactory("ChainReward");
+    chainReward = await ChainReward.deploy(fUSDT.address, ethers.utils.parseUnits("10", 18));
     await chainReward.deployed();
-
-    // 给addr1和addr2分发一些代币
-    // await token.transfer(addr1.address, ethers.utils.parseEther("1000"));
-    // await token.transfer(addr2.address, ethers.utils.parseEther("1000"));
-    amount = ethers.utils.parseEther("1000");
-    await token.connect(owner).mint(addr1.address, amount);
-    await token.connect(owner).mint(addr2.address, amount);
   });
 
-  it("should create a bounty", async function () {
-    const reward = ethers.utils.parseEther("100");
-    console.log(reward);
-    const expire = 180000000; // 1分钟后的时间戳
-    console.log(expire);
-    const describe = "这是一个测试任务";
-    await token.connect(addr1).approve(chainReward.address, reward);
-    await chainReward.connect(addr1).createBounty(reward, describe, expire);
+  describe("Admin functions", function () {
+    it("Should set fee by admin", async function () {
+      await chainReward.setFee(ethers.utils.parseUnits("5", 18));
+      expect(await chainReward.fee()).to.equal(ethers.utils.parseUnits("5", 18));
+    });
 
-    const bounty = await chainReward.getBounty(0);
-    expect(bounty[0]).to.equal(addr1.address);
-    expect(bounty[1]).to.equal(reward);
-    expect(bounty[2]).to.equal(describe);
-    expect(bounty[3]).to.be.true;
-    expect(bounty[4]).to.be.false;
-    expect(bounty[5]).to.be.equal(expire);
+    it("Should add to and remove from blacklist by admin", async function () {
+      await chainReward.addToBlacklist(user1.address);
+      expect(await chainReward.blacklist(user1.address)).to.be.true;
+
+      await chainReward.removeFromBlacklist(user1.address);
+      expect(await chainReward.blacklist(user1.address)).to.be.false;
+    });
   });
 
-  // it("should accept a bounty with collateral", async function () {
-  //   const reward = ethers.utils.parseEther("100");
-  //   const collateral = reward.div(10); // 10% collateral
+  describe("Issuer functions", function () {
+    it("Should create a bounty", async function () {
+      const reward = ethers.utils.parseUnits("100", 18);
+      const fee = ethers.utils.parseUnits("10", 18);
+      const description = "ipfs_hash";
+      const expiry = Math.floor(Date.now() / 1000) + 3600;
 
-  //   await token.connect(addr1).approve(chainReward.address, reward);
-  //   await chainReward.connect(addr1).createBounty(reward);
+      await fUSDT.connect(user1).approve(chainReward.address, reward.add(fee));
+      await chainReward.connect(user1).createBounty(reward, description, expiry);
 
-  //   await token.connect(addr2).approve(chainReward.address, collateral);
-  //   await chainReward.connect(addr2).acceptBounty(0);
+      const bounty = await chainReward.getBounty(0);
+      expect(bounty.issuer).to.equal(user1.address);
+      expect(bounty.reward).to.equal(reward.sub(fee));
+    });
 
-  //   const task = await chainReward.getTaskDetails(0);
-  //   expect(task[0]).to.equal(addr2.address);
-  //   expect(task[1]).to.equal(collateral);
-  //   expect(task[2]).to.be.false;
-  // });
+    it("Should adjust a bounty reward", async function () {
+      // Create a bounty first
+      const reward = ethers.utils.parseUnits("100", 18);
+      const fee = ethers.utils.parseUnits("10", 18);
+      const description = "ipfs_hash";
+      const expiry = Math.floor(Date.now() / 1000) + 3600;
 
-  // it("should submit and review task", async function () {
-  //   const reward = ethers.utils.parseEther("100");
-  //   const collateral = reward.div(10); // 10% collateral
+      await fUSDT.connect(user1).approve(chainReward.address, reward.add(fee));
+      await chainReward.connect(user1).createBounty(reward, description, expiry);
 
-  //   await token.connect(addr1).approve(chainReward.address, reward);
-  //   await chainReward.connect(addr1).createBounty(reward);
+      // Adjust the reward
+      const newReward = ethers.utils.parseUnits("150", 18);
+      await chainReward.connect(user1).adjustReward(0, newReward);
 
-  //   await token.connect(addr2).approve(chainReward.address, collateral);
-  //   await chainReward.connect(addr2).acceptBounty(0);
+      const bounty = await chainReward.getBounty(0);
+      expect(bounty.reward).to.equal(newReward);
+    });
 
-  //   await chainReward.connect(addr2).submitTaskResult(0);
+    it("Should cancel a bounty", async function () {
+      // Create a bounty first
+      const reward = ethers.utils.parseUnits("100", 18);
+      const fee = ethers.utils.parseUnits("10", 18);
+      const description = "ipfs_hash";
+      const expiry = Math.floor(Date.now() / 1000) + 3600;
 
-  //   let task = await chainReward.getTaskDetails(0);
-  //   expect(task[2]).to.be.true; // Task submitted
+      await fUSDT.connect(user1).approve(chainReward.address, reward.add(fee));
+      await chainReward.connect(user1).createBounty(reward, description, expiry);
 
-  //   await chainReward.connect(owner).reviewTask(0, true);
+      // Cancel the bounty
+      await chainReward.connect(user1).cancelBounty(0);
 
-  //   const bounty = await chainReward.getBountyDetails(0);
-  //   expect(bounty[3]).to.be.true; // Bounty completed
+      const bounty = await chainReward.getBounty(0);
+      expect(bounty.isActive).to.be.false;
+    });
+  });
 
-  //   // 检查余额
-  //   const finalBalance = await token.balanceOf(addr2.address);
-  //   expect(finalBalance).to.equal(ethers.utils.parseEther("1100")); // 1000 initial + 100 reward
-  // });
+  describe("Acceptor functions", function () {
+    it("Should accept a bounty", async function () {
+      // Create a bounty first
+      const reward = ethers.utils.parseUnits("100", 18);
+      const fee = ethers.utils.parseUnits("10", 18);
+      const description = "ipfs_hash";
+      const expiry = Math.floor(Date.now() / 1000) + 3600;
 
-  // it("should blacklist a user", async function () {
-  //   await chainReward.connect(owner).addToBlacklist(addr1.address);
-  //   expect(await chainReward.blacklist(addr1.address)).to.be.true;
+      await fUSDT.connect(user1).approve(chainReward.address, reward.add(fee));
+      await chainReward.connect(user1).createBounty(reward, description, expiry);
 
-  //   await chainReward.connect(owner).removeFromBlacklist(addr1.address);
-  //   expect(await chainReward.blacklist(addr1.address)).to.be.false;
-  // });
+      // Accept the bounty
+      const collateral = ethers.utils.parseUnits("9", 18); // 10% of reward - fee
+      await fUSDT.connect(user2).approve(chainReward.address, collateral);
+      await chainReward.connect(user2).acceptBounty(0);
+
+      const task = await chainReward.getTask(0);
+      expect(task.acceptor).to.equal(user2.address);
+      expect(task.collateral).to.equal(collateral);
+    });
+
+    it("Should submit a task result", async function () {
+      // Create and accept a bounty first
+      const reward = ethers.utils.parseUnits("100", 18);
+      const fee = ethers.utils.parseUnits("10", 18);
+      const description = "ipfs_hash";
+      const expiry = Math.floor(Date.now() / 1000) + 3600;
+
+      await fUSDT.connect(user1).approve(chainReward.address, reward.add(fee));
+      await chainReward.connect(user1).createBounty(reward, description, expiry);
+
+      const collateral = ethers.utils.parseUnits("9", 18); // 10% of reward - fee
+      await fUSDT.connect(user2).approve(chainReward.address, collateral);
+      await chainReward.connect(user2).acceptBounty(0);
+
+      // Submit the task result
+      const result = "result_ipfs_hash";
+      await chainReward.connect(user2).submitTaskResult(0, result);
+
+      const task = await chainReward.getTask(0);
+      expect(task.result).to.equal(result);
+      expect(task.isSubmitted).to.be.true;
+    });
+  });
+
+  describe("Review and withdrawal functions", function () {
+    it("Should review and approve a task result", async function () {
+      // Create, accept, and submit a task first
+      const reward = ethers.utils.parseUnits("100", 18);
+      const fee = ethers.utils.parseUnits("10", 18);
+      const description = "ipfs_hash";
+      const expiry = Math.floor(Date.now() / 1000) + 3600;
+
+      await fUSDT.connect(user1).approve(chainReward.address, reward.add(fee));
+      await chainReward.connect(user1).createBounty(reward, description, expiry);
+
+      const collateral = ethers.utils.parseUnits("9", 18); // 10% of reward - fee
+      await fUSDT.connect(user2).approve(chainReward.address, collateral);
+      await chainReward.connect(user2).acceptBounty(0);
+
+      const result = "result_ipfs_hash";
+      await chainReward.connect(user2).submitTaskResult(0, result);
+
+      // Review and approve the task
+      await chainReward.reviewTask(0, true);
+
+      const bounty = await chainReward.getBounty(0);
+      expect(bounty.isCompleted).to.be.true;
+    });
+
+    it("Should allow acceptor to withdraw collateral after completion", async function () {
+      // Create, accept, submit, and approve a task first
+      const reward = ethers.utils.parseUnits("100", 18);
+      const fee = ethers.utils.parseUnits("10", 18);
+      const description = "ipfs_hash";
+      const expiry = Math.floor(Date.now() / 1000) + 3600;
+
+      await fUSDT.connect(user1).approve(chainReward.address, reward.add(fee));
+      await chainReward.connect(user1).createBounty(reward, description, expiry);
+
+      const collateral = ethers.utils.parseUnits("9", 18); // 10% of reward - fee
+      await fUSDT.connect(user2).approve(chainReward.address, collateral);
+      await chainReward.connect(user2).acceptBounty(0);
+
+      const result = "result_ipfs_hash";
+      await chainReward.connect(user2).submitTaskResult(0, result);
+
+      await chainReward.reviewTask(0, true);
+
+      // Withdraw collateral
+      const balanceBefore = await fUSDT.balanceOf(user2.address);
+      await chainReward.connect(user2).withdrawCollateral(0);
+      const balanceAfter = await fUSDT.balanceOf(user2.address);
+
+      expect(balanceAfter.sub(balanceBefore)).to.equal(collateral);
+    });
+  });
 });
