@@ -9,7 +9,7 @@
 import { EventBase } from "./EventBase";
 
 export class EventLoading extends EventBase {
-  public static readonly event: string = "logic.GameEventLoading";
+  public static readonly event: string = "logic.EventLoading";
 
   public get subject(): string {
     return EventLoading.event;

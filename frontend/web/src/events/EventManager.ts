@@ -2,9 +2,9 @@
  * @Author: zhouzheng66 2029054066@qq.com
  * @Date: 2024-06-04 01:57:25
  * @LastEditors: zhouzheng66 2029054066@qq.com
- * @LastEditTime: 2024-06-04 02:20:04
+ * @LastEditTime: 2024-06-05 21:38:09
  * @FilePath: /defi_chainreward/frontend/web/src/events/EventManager.ts
- * @Description: 时间管理
+ * @Description: 事件管理器
  */
 import { EventBus } from "../plugins/EventBus";
 import { Singleton } from "../core/Singleton";

@@ -10,11 +10,11 @@ import { userData } from "../data/UserData";
 import { EventBase } from "./EventBase";
 import { Loading } from "../plugins/Loading";
 
-export class GameEventWalletConnected extends EventBase {
-  public static readonly event: string = "logic.GameEventWalletConnected";
+export class EventWalletConnected extends EventBase {
+  public static readonly event: string = "logic.EventWalletConnected";
 
   public get subject(): string {
-    return GameEventWalletConnected.event;
+    return EventWalletConnected.event;
   }
 
   public async exec(address: string) {
