@@ -218,3 +218,5 @@ artifacts
 contracts/.env
 
 client/website/.env
+**/*.deps
+*/deps

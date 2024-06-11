@@ -2,9 +2,9 @@
  * @Author: zhouzheng66 2029054066@qq.com
  * @Date: 2024-05-23 13:34:21
  * @LastEditors: zhouzheng66 2029054066@qq.com
- * @LastEditTime: 2024-05-23 13:39:39
+ * @LastEditTime: 2024-06-06 16:32:55
  * @FilePath: /defi_chainreward/contract/hardhat.config.ts
- * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
+ * @Description: hardhat配置文件
  */
 import "@nomicfoundation/hardhat-chai-matchers";
 import "@nomicfoundation/hardhat-toolbox";

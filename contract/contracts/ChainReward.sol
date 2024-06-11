@@ -284,6 +284,7 @@ contract ChainReward {
     /**
      * @notice 获取任务信息
      * @param bountyId 悬赏id
+     * @return 任务信息
      */
     function getTask(uint256 bountyId) public view returns (Task memory) {
         return tasks[bountyId];
