@@ -2,9 +2,9 @@
  * @Author: zhouzheng66 2029054066@qq.com
  * @Date: 2024-06-05 21:32:10
  * @LastEditors: zhouzheng66 2029054066@qq.com
- * @LastEditTime: 2024-06-05 21:32:13
+ * @LastEditTime: 2024-06-13 12:26:57
  * @FilePath: /defi_chainreward/frontend/web/src/components/CreateBounty.vue
- * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
+ * @Description: 新建悬赏页面
 -->
 <template>
   <div>

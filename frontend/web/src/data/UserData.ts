@@ -2,7 +2,7 @@
  * @Author: zhouzheng66 2029054066@qq.com
  * @Date: 2024-06-04 02:01:12
  * @LastEditors: zhouzheng66 2029054066@qq.com
- * @LastEditTime: 2024-06-11 22:56:13
+ * @LastEditTime: 2024-06-13 12:53:57
  * @FilePath: /defi_chainreward/frontend/web/src/data/UserData.ts
  * @Description: 用户data类
  */
@@ -32,6 +32,9 @@ export class UserData extends Singleton {
     }
     // TODO
     return null;
+  }
+  async init() {
+    await this.loadData();
   }
 }
 export const userData: Readonly<UserData> = UserData.getInstance();

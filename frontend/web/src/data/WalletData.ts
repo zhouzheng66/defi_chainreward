@@ -2,7 +2,7 @@
  * @Author: zhouzheng66 2029054066@qq.com
  * @Date: 2024-06-04 01:16:07
  * @LastEditors: zhouzheng66 2029054066@qq.com
- * @LastEditTime: 2024-06-11 23:33:11
+ * @LastEditTime: 2024-06-13 13:31:49
  * @FilePath: /defi_chainreward/frontend/my-app/src/data/WalletData.ts
  * @Description: 钱包数据
  */
@@ -14,9 +14,9 @@ import { EventBus } from "@/plugins/EventBus";
 import { Toast } from "@/plugins/Toast";
 import { IndexDB } from "@/plugins/indexDB";
 import { EventWalletAccountChanged } from "@/events/EventWalletAccountChanged";
-import { EventWalletChainChanged } from "@/events/EventWalletChainChanged";
 import { EventWalletConnected } from "@/events/EventWalletConnected";
 import { EventWalletDisconnect } from "@/events/EventWalletDisconnect";
+import { contractData } from "./ContractData";
 
 interface WalletCache {
   address: string;
@@ -61,6 +61,17 @@ export class WalletData extends Singleton {
   public get isAuth(): boolean {
     return !StringUtil.isEmpty(this.data.address);
   }
+  public get shortAddress(): string {
+    if (StringUtil.isEmpty(this.data.address)) {
+      return "";
+    }
+
+    const length = this.data.address.length;
+    return `${this.data.address.substring(
+      0,
+      6
+    )}...${this.data.address.substring(length - 4, length)}`;
+  }
   public async isChainValid(): Promise<boolean> {
     if (!this.hasProvider) {
       return Promise.resolve(false);
@@ -99,6 +110,45 @@ export class WalletData extends Singleton {
       address: this.data.address,
       chainId: this.data.chainId,
     });
+  }
+  public async chainChange(chainId: number) {
+    this._provider = null;
+    contractData.clearAllContracts();
+    // TODO
+    await this.disconnect();
+  }
+
+  public async connectWallet(): Promise<void> {
+    if (!this.hasProvider) {
+      Toast.error(`there's no provider`);
+      return Promise.resolve();
+    }
+    const chainId0x = await this.ethereum.request({
+      method: "eth_chainId",
+    });
+
+    const chainId = parseInt(chainId0x, 16);
+    const idx = ChainIds.findIndex((id) => id === chainId);
+    if (idx < 0) {
+      // Toast.error(
+      //   `chain ${chainId} is not supported, please switch your network`
+      // );
+      // return Promise.resolve();
+      return await this.switchNetwork();
+    }
+
+    const accounts = await this.ethereum.request({
+      method: "eth_requestAccounts",
+    });
+    if (accounts.length <= 0) {
+      return Promise.resolve();
+    }
+    const address = accounts[0];
+    this.data.address = address;
+    this.data.chainId = chainId;
+    this.saveData();
+
+    EventBus.instance.emit(EventWalletConnected.event, accounts[0]);
   }
   public async disconnect() {
     await this.ethereum.request({
@@ -147,6 +197,27 @@ export class WalletData extends Singleton {
       console.error("Error fetching balance:", error);
       return null;
     }
+  }
+  private async loadData() {
+    const data: any = await IndexDB.instance.getItem(this.cacheKey);
+    if (data) {
+      // TODO
+      let chainId = this.ethereum ? 0 : -1;
+      if (chainId === 0) {
+        const network = await this.provider.getNetwork();
+        chainId = network.chainId;
+      }
+
+      if (chainId === data.chainId) {
+        this.data.address = data?.address ?? "";
+        this.data.chainId = data?.chainId ?? -1;
+      } else {
+        IndexDB.instance.deleteItem(this.cacheKey);
+      }
+    }
+  }
+  async init() {
+    await this.loadData();
   }
 }
 export const walletData: Readonly<WalletData> = WalletData.getInstance();
